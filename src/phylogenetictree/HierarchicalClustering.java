@@ -1,188 +1,150 @@
 package phylogenetictree;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.PriorityQueue;
 
 /**
- *
- * @author Kuba
+ * Class that handles all computation. Initializes all structuers and then computes the clustering and the phylogenetic tree.
+ * @author Kuba Jalowiec
  */
 public class HierarchicalClustering {
-
-    /**
-     * A simple generic class.
-     */
-    private class Pair<T1, T2 extends Comparable<T2>> implements Comparable<Pair<T1, T2>>{
+    
+    HierarchicalClustering(HashMap<Integer, String> _sequences, HashMap<Character, HashMap<Character, Double>> _weights){
         
-        private final T1 left;
-        private final T2 right;
-        
-        Pair(T1 a, T2 b){
-            
-            left = a;
-            right = b;
-        }
-        
-        Pair(Pair x){
-            
-            left = (T1) x.getLeft();
-            right = (T2) x.getRight();
-        }
-        
-        public T1 getLeft(){
-            
-            return left;
-        }
-        public T2 getRight(){
-            
-            return right;
-        }
-        
-        @Override
-        public String toString()
-        {
-             return "(" + left.toString() + ", " + right.toString() + ")";
-        }
-        
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
-            if(right != ((Pair<T1, T2>) obj).getRight() || left != ((Pair<T1, T2>) obj).getLeft()){
-                return false;
-            }
-            
-            return true;
-        }
-        
-        @Override
-        public int hashCode(){
-            
-            return left.hashCode() % 10000 * right.hashCode() % 10000;
-        }
-        
-        public boolean equals(Pair other) {
-            
-          return (other != null && other.getLeft() == this.left && other.getRight() == this.right);
-        }
-
-        @Override
-        public int compareTo(Pair<T1, T2> o) {
-            
-            return o.getRight().compareTo(this.right);
-        }
+        weights = new HashMap<>(_weights);
+        sequences = new HashMap<>(_sequences);
     }
     
     /**
-     * The sequences to cluster.
+     * Structure contatining the given cost matrix.s
+     */
+    HashMap<Character, HashMap<Character, Double>> weights;
+    
+    /**
+     * Structure containing all the given sequences.
      */
     HashMap<Integer, String> sequences;
+
+    /**
+     * The indicies of sequences (possibly virtual) that are currently being processed.
+     */
+    private ArrayList<Integer> activeNodes; // nodes that are currently being processed
     
     /**
-     * The generated tree.
+     * The generated phylogenetic tree.
      */
-    HashMap<Integer, Pair<Integer, Integer>> tree;
+    private HashMap<Integer, Pair<Integer, Integer>> tree;  // binary tree: (parent -> (left child, right child)), children of leaves are -1
     
     /**
-     * HashTable containing scores of all clusters.
+     * HashTable containing all possible scores.
      */
-    public HashMap<Pair<Integer, Integer>, Double> scores;
+    private HashMap<Pair<Integer, Integer>, Double> scores; // (left, right) -> weights(left,right)
     
     /**
-     *  Structure to process clustering.
+     *  Structure to process activeNodes.
      */
-    public PriorityQueue<Pair <Pair<Integer, Integer>, Double> > clustering;
+    private PriorityQueue<Pair <Pair<Integer, Integer>, Double> > activeNodeScores; // at the top is the pair of the closest sequences
     
-    public void initalizeClustering(Interface i){
+    /**
+     * Initializes all structures needed for computation.
+     */
+    public void initalizeClustering(){
         
-        clustering = new PriorityQueue<>();
-        scores = new HashMap<>();
-        tree = new HashMap<>();
-        sequences = new HashMap<>(i.sequences);
+        activeNodeScores = new PriorityQueue<>();   // at the top of this structure is the best global alignment
+        scores = new HashMap<>();   // constant time lookup for the already computed scores
+        tree = new HashMap<>(); // the phylogenetic tree
+        activeNodes = new ArrayList<>();    // nodes the are being aligned in activeNodeScores
         
         for(Integer j : sequences.keySet()){
             
-            tree.put(j, new Pair(-1, -1));
+            tree.put(j, new Pair(-1, -1));  // initializing trivial clusters containing only the plain sequences (they dont habe any children)
         }
         
-        for(Integer it1 : i.sequences.keySet()){
+        int nr = 0;
+        
+        for(Integer it1 : sequences.keySet()){
             
-            for(Integer it2 : i.sequences.keySet()){
+            activeNodes.add(it1);   // adding all sequences from the fasta file to be processed
+            
+            for(Integer it2 : sequences.keySet()){
                 
                 if(!it1.equals(it2)){
                     
-                    String a = i.sequences.get(it1);
-                    String b = i.sequences.get(it2);
+                    String a = sequences.get(it1);
+                    String b = sequences.get(it2);
                     
-                    SmithWaterman alignment = new SmithWaterman(a, b, i.score);
+                    SmithWaterman alignment = new SmithWaterman(a, b, weights); // global alignemnt of the given sequences
                     alignment.align();
-                    clustering.add(new Pair(new Pair(it1, it2), alignment.getScore()));
-                    scores.put(new Pair(it1, it2), alignment.getScore());
-                    scores.put(new Pair(it2, it1), alignment.getScore());
+                    activeNodeScores.add(new Pair(new Pair(it1, it2), alignment.getScore()));   // inserting the computed weights to be processed
+                    scores.put(new Pair(it1, it2), alignment.getScore());   // inserting the computed weights to the lookup table
                 }
             }
         }
         
-        /*while(scores.size() != 0){
-            
-            System.out.printf("(%d, %d) -> %f\n", clustering.element().left.left, clustering.element().left.right, clustering.element().right);
-            clustering.remove();
-        }*/
     }
     
-    public void runClustering(){
+    /**
+     * left and right are merged to a virtual sequence.
+     * @param left index to the first node being clusterd with the second node. They both make a virtual node.
+     * @param right index to the second node being clustered with the first node. They both make a virtual node.
+     */
+    
+    private void cluster(Integer left, Integer right){
         
-        Pair<Integer, Integer> p1 = new Pair(1, 2);
-        Pair<Integer, Integer> p2 = new Pair(2, 1);
-        
-        
-        System.out.printf("%b\n", p1.equals(p1));
-        System.out.printf("%d\n", p1.hashCode());
-        System.out.printf("%d\n", p2.hashCode());
-        
-        /*System.out.printf("\nclustering:\n");
-        while(clustering.size() > 0){
-            
-            Pair< Pair<Integer,Integer>, Double> e = clustering.remove();
-            System.out.printf("(%d, %d) -> %f\n", e.left.left, e.left.right, e.right);
-        }
-        System.out.println();*/
-        
-        while(clustering.size() > 4){
-            
-            Pair< Pair<Integer,Integer>, Double> e = clustering.remove();
-            clustering.remove();
-            
-            
-            for(Integer i : sequences.keySet()){
+            for(Integer i : activeNodes){
                 
-                if(!i.equals(e.left.left) && !i.equals(e.left.right)){
+                if(!i.equals(left) && !i.equals(right)){    
                 
-                    System.out.printf("\nclustering:\n");
-                    System.out.print(clustering);
-                    System.out.printf("\nmax: (%d, %d) -> %f\n", e.left.left, e.left.right, e.right);
+                    double newScore = 0.5*(scores.get(new Pair(left, i)) + scores.get(new Pair(right, i)));
+                    scores.put(new Pair(i, tree.size() + 1), newScore);  // insert virutal node with the new weights between it and i
+                    scores.put(new Pair(tree.size() + 1, i), newScore);
                     
-                    System.out.printf("licze srednia z: (%d, %d) i (%d, %d)", e.left.left, i, e.left.right, i);
-                    double tmp = 0.5*(scores.get(new Pair(e.left.left, i)) + scores.get(new Pair(e.left.right, i)));
-                    clustering.add(new Pair(new Pair(i, tree.size()), tmp));
-                    clustering.add(new Pair(new Pair(tree.size(), i), tmp));
-                    scores.put(new Pair(i, tree.size()), tmp);
-                    scores.put(new Pair(tree.size(), i), tmp);
-                    clustering.remove(new Pair(i, e.left.left));
-                    clustering.remove(new Pair(i, e.left.right));
-                    clustering.remove(new Pair(e.left.left, i));
-                    clustering.remove(new Pair( e.left.right, i));
+                    activeNodeScores.add(new Pair(new Pair(i, tree.size() + 1), newScore));
+                    activeNodeScores.add(new Pair(new Pair(tree.size() + 1, i), newScore));
+
+                    activeNodeScores.remove(new Pair(new Pair(i, left), scores.get(new Pair(i, left))));    // removes old (i, left) node
+                    activeNodeScores.remove(new Pair(new Pair(left, i), scores.get(new Pair(left, i))));    // removes old (left, i) node
+                    activeNodeScores.remove(new Pair(new Pair(i, right), scores.get(new Pair(i, right))));    // removes old (i, right) node
+                    activeNodeScores.remove(new Pair(new Pair(right, i), scores.get(new Pair(right, i))));    // removes old (right, i) node
                 }
             }
-            tree.put(tree.size(), e.left);
+            activeNodes.add(tree.size() + 1);
+            tree.put(tree.size() + 1, new Pair(left, right));
+            activeNodes.remove(left);
+            activeNodes.remove(right);
+    }
+    
+    /**
+     * Computes the phylogenetic tree.
+     */
+    public void runClustering(){
+       
+        while(activeNodes.size() > 2){
+            
+            Pair< Pair<Integer,Integer>, Double> e = activeNodeScores.remove(); // removes (a, b) -> weights of a and b
+            activeNodeScores.remove(); // removes (b, a) -> weights of a and b
+            Integer left = e.getLeft().getLeft(), right = e.getLeft().getRight();
+            
+            cluster(left, right);
         }
+    }
+    
+    public HashMap<Integer, Pair<Integer, Integer>> getTree(){
+        
+        return tree;
+    }
+    
+    String printTree(Integer index) {
+        
+        if(tree.get(index).getLeft() == -1 && tree.get(index).getRight() == -1){
+            return index.toString();
+        }
+        String left = printTree(tree.get(index).getLeft());
+        String right = printTree(tree.get(index).getRight());
+        
+        System.out.printf("(%s,%s)", left, right);
+        
+        return left+right;
     }
 }
-    
