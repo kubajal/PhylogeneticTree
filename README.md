@@ -10,3 +10,5 @@ matrix.txt format:
 - iiib) k-th value corresponds to the cost of replacing the i-th letter by the k-th
 
 sequences.fasta includes multiple sequences to cluster
+
+docs: https://kubajal.github.io/PhylogeneticTree/
