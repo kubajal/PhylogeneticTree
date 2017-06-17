@@ -88,6 +88,8 @@ public class Interface {
             sequences.put(counter, sb.toString());
         }
         
+        System.out.printf("All sequences with numbers greater than %d are clusters.\n", sequences.size());
+        
         /* ------++++++++++++++++++++++++++++++++------ */
     }
     
