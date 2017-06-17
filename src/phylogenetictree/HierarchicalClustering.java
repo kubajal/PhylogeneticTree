@@ -116,7 +116,7 @@ public class HierarchicalClustering {
     }
     
     /**
-     * Computes the phylogenetic tree.
+     * Computes the clusters.
      */
     public void runClustering(){
        
@@ -135,16 +135,21 @@ public class HierarchicalClustering {
         return tree;
     }
     
-    String printTree(Integer index) {
+    void printTree(Integer index, int n) {
         
-        if(tree.get(index).getLeft() == -1 && tree.get(index).getRight() == -1){
-            return index.toString();
+        Integer left = tree.get(index).getLeft();
+        Integer right = tree.get(index).getRight();
+        
+            
+        if(left != -1 && right != -1){
+            for(int i = 0; i < n; i++){
+                System.out.printf(" ");
+            }
+            System.out.printf("%d -> (%d, %d)\n", index, left, right);
         }
-        String left = printTree(tree.get(index).getLeft());
-        String right = printTree(tree.get(index).getRight());
-        
-        System.out.printf("(%s,%s)", left, right);
-        
-        return left+right;
+        if(left != -1)
+           printTree(left, n + 1);
+        if(right != -1)
+            printTree(right,n + 1);
     }
 }
